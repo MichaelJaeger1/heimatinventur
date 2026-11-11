@@ -396,7 +396,7 @@ function listHtml(){if(!S.itemsReady)return loading();const it=filtered();
   body+=`<div class="ghead">${esc(arr[0].emoji||'')} <b>${esc(arr[0].name)}</b><span>${tot} Stück${esc(amt)} in ${arr.length} Chargen – oben zuerst nehmen</span></div><div class="gbox">${arr.map(b=>row(b,true)).join('')}</div>`;});
  return `<h2>${t}<small><button class="back" data-act="selGroup" data-g="${gi}">${all?'keine':'alle'} wählen</button> ${x.length}</small></h2><div class="list">${body}</div>`;}).join('');}
 function renderSelBar(){const b=$('#selbar');if(!b)return;[...S.sel].forEach(id=>{if(!S.items.some(i=>i.id===id))S.sel.delete(id);});
- const on=S.view==='start'&&S.sel.size>0;b.hidden=!on;document.body.classList.toggle('selon',on);if(!on){b.innerHTML='';return;}
+ const on=(S.view==='start'||S.view==='lager')&&S.sel.size>0;b.hidden=!on;document.body.classList.toggle('selon',on);if(!on){b.innerHTML='';return;}
  b.innerHTML=`<div class="selin"><div class="t"><b>${S.sel.size} ausgewählt</b><button data-act="selClear">✕ Auswahl aufheben</button></div><div class="selbtns"><button class="go" data-act="bulk" data-a="used">✅ Verbraucht</button><button class="bad" data-act="bulk" data-a="trash">🗑️ Weg</button><button data-act="bulk" data-a="remove">↩️ Fehler</button><button data-act="bulkMove">📍 Ort</button><button data-act="bulkChecked">✓ Geprüft</button></div></div>`;}
 function chipsHtml(){const kinds=[['all','Alle']].concat(Object.entries(KINDS).filter(([k])=>S.locs.some(l=>!l.parent&&l.kind===k)).map(([k,v])=>[k,v.e+' '+v.n.split(' ')[0]]));
  return kinds.map(([k,n])=>`<button class="chip ${S.filter===k?'on':''}" data-act="filter" data-k="${k}">${esc(n)}</button>`).join('');}
@@ -413,17 +413,18 @@ function kindTabs(act,sel){const present=Object.keys(KINDS).filter(k=>topLocs().
  return `<div class="seg">${present.map(k=>{const its=S.items.filter(i=>locKind(i.loc)===k);const crit=its.filter(i=>daysLeft(i.exp)<=2).length;
   return `<button class="${k===sel?'on':''}" data-act="${act}" data-k="${k}"><span class="e">${KINDS[k].e}</span>${KINDS[k].n}<small>${its.length}${crit?` · <b>${crit}!</b>`:''}</small></button>`;}).join('')}</div>`;}
 function curLagerKind(){const present=Object.keys(KINDS).filter(k=>topLocs().some(t=>t.kind===k));if(!present.includes(S.lagerKind))S.lagerKind=present[0]||null;return S.lagerKind;}
+const ckCard=i=>`<div class="crow"><button class="ck ${S.sel.has(i.id)?'on':''}" data-act="sel" data-id="${esc(i.id)}" aria-label="auswählen">${S.sel.has(i.id)?'✓':''}</button>${card(i)}</div>`;
 function viewLager(){if(!S.locsReady||!S.hhReady)return loading();
  if(!topLocs().length)return `<div class="note">Noch keine Lagerorte in diesem Haushalt. <a href="#orte">Jetzt anlegen</a></div>`;
  const lk=curLagerKind();const tops=topLocs().filter(t=>t.kind===lk);
  let h=tops.map(t=>{const all=S.items.filter(i=>inLoc(i,t.id)).sort(byExp);const crit=all.filter(i=>daysLeft(i.exp)<=2).length;const open=S.open[t.id];
   let body='';if(open){const direct=all.filter(i=>i.loc===t.id);const ks=kids(t.id);
-   if(direct.length)body+=(ks.length?`<div class="subhead">Allgemein</div>`:'')+`<div class="list">${direct.map(card).join('')}</div>`;
-   ks.forEach(k=>{const x=all.filter(i=>i.loc===k.id);body+=`<div class="subhead">${esc(k.name)} · ${x.length}</div>`+(x.length?`<div class="list">${x.map(card).join('')}</div>`:'<div class="loc" style="padding:0 6px">leer</div>');});
+   if(direct.length)body+=(ks.length?`<div class="subhead">Allgemein</div>`:'')+`<div class="list">${direct.map(ckCard).join('')}</div>`;
+   ks.forEach(k=>{const x=all.filter(i=>i.loc===k.id);body+=`<div class="subhead">${esc(k.name)} · ${x.length}</div>`+(x.length?`<div class="list">${x.map(ckCard).join('')}</div>`:'<div class="loc" style="padding:0 6px">leer</div>');});
    if(!all.length&&!ks.length)body+='<div class="loc" style="padding:0 6px 6px">leer</div>';}
-  return `<div class="box"><button class="boxhead" data-act="toggle" data-id="${esc(t.id)}"><span class="em">${KINDS[t.kind]?.e||'🏠'}</span><span class="t">${esc(t.name)}</span><span class="c">${all.length} Artikel${crit?`<br><b>${crit} dringend</b>`:''}</span><span>${open?'▾':'▸'}</span></button>${open?`<div class="boxbody">${body}</div>`:''}</div>`;}).join('');
- const orphan=S.items.filter(i=>!locById(i.loc));if(orphan.length)h+=`<h2>Ohne Lagerort</h2><div class="list">${orphan.sort(byExp).map(card).join('')}</div>`;
- return `<div class="row" style="justify-content:space-between"><a class="btn" href="#kontrolle">🔍 MHD-Kontrollgang · ${kontrolleList().length}</a><button class="back" data-act="expandAll">${tops.every(t=>S.open[t.id])?'Alle zuklappen':'Alle aufklappen'}</button></div>`+kindTabs('lagerKind',lk)+h;}
+  return `<div class="box"><button class="boxhead" data-act="toggle" data-id="${esc(t.id)}"><span class="em">${KINDS[t.kind]?.e||'🏠'}</span><span class="t">${esc(t.name)}</span><span class="c">${all.length} Artikel${crit?`<br><b>${crit} dringend</b>`:''}</span><span>${open?'▾':'▸'}</span></button>${open?`<div class="boxbody">${all.length?`<div class="row" style="justify-content:flex-end"><button class="back" data-act="selLoc" data-id="${esc(t.id)}">${all.every(i=>S.sel.has(i.id))?'keine':'alle'} wählen</button></div>`:''}${body}</div>`:''}</div>`;}).join('');
+ const orphan=S.items.filter(i=>!locById(i.loc));if(orphan.length)h+=`<h2>Ohne Lagerort</h2><div class="list">${orphan.sort(byExp).map(ckCard).join('')}</div>`;
+ return `<div class="row" style="justify-content:space-between"><a class="btn" href="#kontrolle">🔍 MHD-Kontrollgang · ${kontrolleList().length}</a><button class="back" data-act="expandAll">${tops.every(t=>S.open[t.id])?'Alle zuklappen':'Alle aufklappen'}</button></div><div class="row" style="justify-content:flex-end"><button class="back" data-act="selAll">${S.items.length&&S.items.every(i=>S.sel.has(i.id))?'Auswahl aufheben':'Ganzen Bestand auswählen ('+S.items.length+')'}</button></div>`+kindTabs('lagerKind',lk)+h;}
 
 /* ----- Einräumen ----- */
 function recentBonsHtml(){ensureStats();if(!S.purchReady)return '';const P=S.purch.filter(p=>hhOf(p)===S.hh).slice().sort((a,b)=>String(b.added||b.date||'').localeCompare(String(a.added||a.date||''))).slice(0,5);if(!P.length)return '';
@@ -753,7 +754,7 @@ async function logAct(i,action,qty){const rest=i.rest??1;const units=action==='t
 async function unbook(i,qty){if(!i.pid||!DB)return;let snap;try{snap=await DB.doc('purchases/'+i.pid).get();}catch(e){return;}if(!snap.exists)return;const p=snap.data();
  const lines=(p.lines||[]).map(l=>({...l}));let k=lines.findIndex(l=>pkey(l.name,l.amount,l.unit,l.w)===ipk(i));if(k<0)k=lines.findIndex(l=>slugName(l.name)===slugName(i.name));let minus=(+i.price||0)*qty;
  if(k>=0){const l=lines[k];const per=l.qty?(+l.price||0)/l.qty:(+i.price||0);minus=per*Math.min(qty,l.qty||qty);l.qty=Math.max(0,(l.qty||1)-qty);l.price=Math.max(0,Math.round(((+l.price||0)-minus)*100)/100);if(l.qty===0)lines.splice(k,1);}
- const total=Math.max(0,Math.round(((+p.total||0)-minus)*100)/100);await write(()=>DB.doc('purchases/'+i.pid).update({lines,total}));}
+ const total=Math.max(0,Math.round(((+p.total||0)-minus)*100)/100);if(!lines.length){await write(()=>DB.doc('purchases/'+i.pid).delete());return;}await write(()=>DB.doc('purchases/'+i.pid).update({lines,total}));}
 async function consume(i,qty,action){qty=Math.min(qty,i.qty||1);const left=(i.qty||1)-qty;
  const ok=await write(async()=>{if(left>0)await DB.doc('items/'+i.id).update({qty:left});else await DB.doc('items/'+i.id).delete();});
  if(!ok)return;closeSheet();
@@ -947,7 +948,9 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
    if(mode==='all')await write(()=>DB.doc('purchases/'+p.id).delete());unbusy();closeSheet();toast(mode==='all'?`🗑️ Bon und ${n} Artikel gelöscht`:`🗑️ ${n} Artikel gelöscht`);render();};renderSheet();break;}
  case 'sel':{const id=ds.id;if(S.sel.has(id))S.sel.delete(id);else S.sel.add(id);el.classList.toggle('on',S.sel.has(id));el.textContent=S.sel.has(id)?'✓':'';renderSelBar();break;}
  case 'selGroup':{const ids=S.groupIds[+ds.g]||[];const all=ids.every(id=>S.sel.has(id));ids.forEach(id=>all?S.sel.delete(id):S.sel.add(id));$('#list').innerHTML=listHtml();renderSelBar();break;}
- case 'selClear':S.sel.clear();$('#list')&&($('#list').innerHTML=listHtml());renderSelBar();break;
+ case 'selLoc':{const ids=S.items.filter(i=>inLoc(i,ds.id)).map(i=>i.id);const all=ids.every(id=>S.sel.has(id));ids.forEach(id=>all?S.sel.delete(id):S.sel.add(id));render();break;}
+ case 'selAll':{const all=S.items.length&&S.items.every(i=>S.sel.has(i.id));if(all)S.sel.clear();else S.items.forEach(i=>S.sel.add(i.id));render();break;}
+ case 'selClear':S.sel.clear();if(S.view==='lager')render();else{$('#list')&&($('#list').innerHTML=listHtml());renderSelBar();}break;
  case 'bulk':{const arr=[...S.sel].map(id=>S.items.find(i=>i.id===id)).filter(Boolean);if(!arr.length)break;const a=ds.a;let n=0;busy(a==='trash'?'Buche weggeworfen…':a==='remove'?'Entferne Fehlbuchungen…':'Buche verbraucht…');
   for(const i of arr){const ok=await write(()=>DB.doc('items/'+i.id).delete());if(!ok)break;n++;if(a==='remove')await unbook(i,i.qty||1);await logAct(i,a,i.qty||1);}
   unbusy();S.sel.clear();toast(a==='trash'?`🗑️ ${n} Artikel als weggeworfen gebucht`:a==='remove'?`↩️ ${n} Fehlbuchungen entfernt – Beträge aus den Ausgaben genommen`:`✅ ${n} Artikel verbraucht`);render();break;}
